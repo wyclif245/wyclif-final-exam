@@ -1,1 +1,1 @@
-The file contains an analysis of ecoomerce store sales usin D3 and python
+The file contains an analysis of ecommerce store sales using D3 and python
