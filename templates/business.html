@@ -1,0 +1,109 @@
+<!-- channel.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B2B vs. B2C Analysis</title>
+    <!-- Include D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: 100px;
+            padding: 8px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 1px solid #999;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        
+        h1{
+            color: blue;
+            font-weight:bold;
+            font-weight:bold;
+            text-align: center;
+            font-size:20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>B2B vs. B2C Analysis</h1><hr>
+    <div id="b2bB2cPieChart"></div>
+    <script>
+        // Fetch data from Flask route
+        fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            // Group data by B2B/B2C and calculate total sales for each category
+            const b2bB2cData = data.reduce((acc, cur) => {
+                acc[cur.B2B ? 'B2B' : 'B2C'] = (acc[cur.B2B ? 'B2B' : 'B2C'] || 0) + cur.Amount;
+                return acc;
+            }, {});
+
+            // Convert object to array
+            const b2bB2cArray = Object.entries(b2bB2cData).map(([key, value]) => ({ B2B: key, TotalAmount: value }));
+
+            // Define dimensions for the pie chart
+            const width = 350;
+            const height = 300;
+            const radius = Math.min(width, height) / 2;
+
+            // Define color scale
+            const color = d3.scaleOrdinal()
+                .domain(b2bB2cArray.map(d => d.B2B))
+                .range(["#1f77b4", "#ff7f0e"]); // Blue for B2C, Orange for B2B
+
+            // Define arc generator
+            const arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius);
+
+            // Define pie generator
+            const pie = d3.pie()
+                .value(d => d.TotalAmount);
+
+            // Create SVG element
+            const svg = d3.select("#b2bB2cPieChart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+            // Generate pie chart
+            const arcs = svg.selectAll("arc")
+                .data(pie(b2bB2cArray))
+                .enter()
+                .append("g")
+                .attr("class", "arc");
+
+            // Draw arcs
+            arcs.append("path")
+                .attr("d", arc)
+                .attr("fill", d => color(d.data.B2B))
+                .attr("stroke", "white")
+                .style("stroke-width", "2px")
+                // Tooltip
+                .on("mouseover", function(event, d) {
+                    tooltip.style("opacity", .9);
+                    tooltip.html(`<strong>${d.data.B2B}</strong><br>Total Sales: $${d.data.TotalAmount}`)
+                        .style("left", `${event.pageX}px`)
+                        .style("top", `${event.pageY}px`);
+                })
+                .on("mouseout", function(d) {
+                    tooltip.style("opacity", 0);
+                });
+
+            // Define tooltip
+            const tooltip = d3.select("#b2bB2cPieChart").append("div")
+                .attr("class", "tooltip");
+        })
+        .catch(error => console.error("Error fetching data: ", error));
+    </script>
+</body>
+</html>

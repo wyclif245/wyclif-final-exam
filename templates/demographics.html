@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Demographics Analysis</title>
+    <!-- Include D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Add your CSS styles here */
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: 100px;
+            height: auto;
+            padding: 5px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        h1{
+            color: blue;
+            font-weight:bold;
+            font-weight:bold;
+            text-align: center;
+            font-size:20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Customer Demographics Analysis</h1><hr>
+    <div id="donutChart"></div>
+    <div class="tooltip" style="opacity: 0;"></div>
+    
+    <script>
+        // Fetch data from Flask route
+        fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            // Process the data for gender, age, and age group
+            const combinedData = {
+                'Gender': {},
+                'Age': {},
+                'Age Group': {}
+            };
+
+            data.forEach(item => {
+                // Count gender
+                const gender = item['Gender'];
+                combinedData['Gender'][gender] = (combinedData['Gender'][gender] || 0) + 1;
+
+                // Count age
+                const age = item['Age'];
+                combinedData['Age'][age] = (combinedData['Age'][age] || 0) + 1;
+
+                // Count age group
+                const ageGroup = item['Age Group'];
+                combinedData['Age Group'][ageGroup] = (combinedData['Age Group'][ageGroup] || 0) + 1;
+            });
+
+            // Combine data for donut chart
+            const categories = Object.keys(combinedData);
+            const color = d3.scaleOrdinal()
+                .domain(categories)
+                .range(d3.schemeCategory10);
+
+            const width = 280;
+            const height = 280;
+            const radius = Math.min(width, height) / 2;
+
+            const arc = d3.arc()
+                .innerRadius(radius * 0.6)
+                .outerRadius(radius * 0.8);
+
+            const pie = d3.pie()
+                .value(d => d.value)
+                .sort(null);
+
+            const svg = d3.select("#donutChart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+            const arcs = svg.selectAll("arc")
+                .data(categories.map(category => {
+                    return pie(Object.entries(combinedData[category]).map(([key, value]) => ({ category: key, value })));
+                }))
+                .enter()
+                .append("g");
+
+            arcs.selectAll("path")
+                .data(d => d)
+                .enter()
+                .append("path")
+                .attr("fill", d => color(d.data.category))
+                .attr("d", arc)
+                .on("mouseover", function(event, d) {
+                    d3.select(this).attr("fill", color(d.data.category));
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(d.data.category + "<br>" + d.data.value + " customers")
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function(d) {
+                    d3.select(this).attr("fill", color(d.data.category));
+                    tooltip.transition().duration(500).style("opacity", 0);
+                });
+
+            // Define tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+        })
+        .catch(error => console.error("Error fetching data: ", error));
+    </script>
+</body>
+</html>

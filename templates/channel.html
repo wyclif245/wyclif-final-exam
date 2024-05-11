@@ -1,0 +1,110 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Channel Analysis</title>
+    <!-- Include D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Add your CSS styles here */
+        .bar {
+            fill: steelblue;
+        }
+
+        .bar:hover {
+            fill: orange;
+        }
+
+        .axis text {
+            font: 10px sans-serif;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #000;
+            shape-rendering: crispEdges;
+        }
+        
+        h1{
+            color: blue;
+            font-weight:bold;
+            font-weight:bold;
+            text-align: center;
+            font-size:20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Channel Analysis</h1><hr>
+    <svg id="channelBarChart"></svg>
+    <script>
+        // Fetch data from Flask route
+        fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            // Process the data for channel analysis
+            const channelData = d3.rollup(data, 
+                v => d3.sum(v, d => d.Amount), 
+                d => d.Channel
+            );
+
+            // Convert channel data to array of objects
+            const channelArray = Array.from(channelData, ([key, value]) => ({ channel: key, sales: value }));
+
+            // Define dimensions for the chart
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+            const width =300 - margin.left - margin.right;
+            const height = 300 - margin.top - margin.bottom;
+
+            // Define scales
+            const x = d3.scaleBand()
+                .domain(channelArray.map(d => d.channel))
+                .range([margin.left, width + margin.left])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(channelArray, d => d.sales)])
+                .nice()
+                .range([height, 0]);
+
+            // Create SVG element
+            const svg = d3.select("#channelBarChart")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            // Create bars
+            svg.selectAll(".bar")
+                .data(channelArray)
+                .enter().append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d.channel))
+                .attr("width", x.bandwidth())
+                .attr("y", d => y(d.sales))
+                .attr("height", d => height - y(d.sales))
+                .on("mouseover", function(event, d) {
+                    d3.select(this).attr("fill", "orange");
+                })
+                .on("mouseout", function(d) {
+                    d3.select(this).attr("fill", "steelblue");
+                });
+
+            // Add x-axis
+            svg.append("g")
+                .attr("class", "axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x));
+
+            // Add y-axis
+            svg.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(y));
+        })
+        .catch(error => console.error("Error fetching data: ", error));
+    </script>
+</body>
+</html>

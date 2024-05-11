@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gender Analysis</title>
+    <!-- Include D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Add your CSS styles here */
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: 100px;
+            height: auto;
+            padding: 5px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        /* Add 3D effect */
+        #pieChart {
+            perspective: 900px;
+            transform-style: preserve-3d;
+        }
+
+        path {
+            transition: transform 0.3s ease;
+        }
+
+        path:hover {
+            transform: translateZ(20px);
+        }
+        
+        h1{
+            color: blue;
+            font-weight:bold;
+            font-weight:bold;
+            text-align: center;
+            font-size:20px;
+        }
+        hr{
+            color:blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gender Analysis in 3D Representation</h1><hr>
+    <div id="pieChart"></div>
+    <div class="tooltip" style="opacity: 0;"></div>
+    
+    <script>
+        // Fetch data from Flask route
+        fetch('/data')
+        .then(response => response.json())
+        .then(data => {
+            // Process the data for gender
+            const genderData = {};
+
+            data.forEach(item => {
+                const gender = item['Gender'];
+
+                // Count gender
+                if (genderData[gender]) {
+                    genderData[gender]++;
+                } else {
+                    genderData[gender] = 1;
+                }
+            });
+
+            // Create pie chart for gender
+            const width = 450;
+            const height = 300;
+            const radius = Math.min(width, height) / 2;
+
+            const color = d3.scaleOrdinal()
+                .domain(Object.keys(genderData))
+                .range(d3.schemeCategory10);
+
+            const arc = d3.arc()
+                .innerRadius(0)
+                .outerRadius(radius);
+
+            const pie = d3.pie()
+                .value(d => d.value);
+
+            const svg = d3.select("#pieChart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+            const arcs = svg.selectAll("arc")
+                .data(pie(Object.entries(genderData).map(([key, value]) => ({ gender: key, value }))))
+                .enter()
+                .append("g")
+                .attr("class", "arc");
+
+            arcs.append("path")
+                .attr("fill", d => color(d.data.gender))
+                .attr("d", arc)
+                .on("mouseover", function(event, d) {
+                    d3.select(this).attr("fill", color(d.data.gender));
+                    tooltip.transition().duration(200).style("opacity", .9);
+                    tooltip.html(d.data.gender + "<br>" + d.data.value + " customers")
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function(d) {
+                    d3.select(this).attr("fill", color(d.data.gender));
+                    tooltip.transition().duration(500).style("opacity", 0);
+                })
+                // Split Men and Women slightly
+                .attr("transform", d => {
+                    if (d.data.gender === "Men") {
+                        const centroid = arc.centroid(d);
+                        centroid[0] += 5; // Adjust this value to split them more or less
+                        return "translate(" + centroid + ")";
+                    } else {
+                        return "translate(0, 0)";
+                    }
+                });
+
+            // Define tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+        })
+        .catch(error => console.error("Error fetching data: ", error));
+    </script>
+</body>
+</html>
